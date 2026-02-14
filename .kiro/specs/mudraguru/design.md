@@ -3229,3 +3229,792 @@ CMD ["node", "dist/index.js"]
 
 Now I'll analyze the acceptance criteria to determine which are testable as properties:
 
+
+### Property Reflection
+
+After analyzing all acceptance criteria, I've identified the following redundancies and consolidations:
+
+**Redundancies Identified:**
+1. Properties 1.1 and 1.5 both test language support for voice - can be combined into one comprehensive property
+2. Properties 6.2 and 6.5 both test cache content availability - can be merged
+3. Properties 4.6 and 4.7 both test form persistence and resumption - these are complementary aspects of the same round-trip property
+4. Properties 5.5 and 5.6 both test offline branch data access - can be combined
+5. Properties 10.1 and 10.3 both test data security - can be consolidated into one property about sensitive data handling
+
+**Properties to Combine:**
+- Voice language support (1.1 + 1.5) → Single property about multi-language voice processing
+- Cache functionality (6.2 + 6.5) → Single property about offline content availability
+- Form persistence (4.6 + 4.7) → Single round-trip property for form state
+- Branch offline access (5.5 + 5.6) → Single property about branch data caching
+- Data security (10.1 + 10.3) → Single property about sensitive data protection
+
+After consolidation, we have approximately 45 unique, non-redundant properties to implement.
+
+### Correctness Properties
+
+**Property 1: Multi-language voice transcription**
+*For any* valid Hindi or English speech input, the Voice_Interface should successfully transcribe it to text in the correct language with sufficient accuracy for form completion
+**Validates: Requirements 1.1, 1.5**
+
+**Property 2: Text-to-speech synthesis**
+*For any* text string in Hindi or English, the Voice_Interface should generate audio output
+ in the selected language
+**Validates: Requirements 1.2**
+
+**Property 3: Voice input visual feedback**
+*For any* voice recording session, the Voice_Interface should provide continuous visual feedback while the user is speaking
+**Validates: Requirements 1.3**
+
+**Property 4: Context preservation across input modes**
+*For any* conversation, when a user switches between voice and text input, the conversation context should be maintained without loss
+**Validates: Requirements 1.6**
+
+**Property 5: Eligibility question limit**
+*For any* eligibility check session, the Eligibility_Checker should ask no more than 5 questions
+**Validates: Requirements 2.1**
+
+**Property 6: Eligibility determination performance**
+*For any* completed eligibility questionnaire, the Eligibility_Checker should determine eligibility status within 2 seconds
+**Validates: Requirements 2.3**
+
+**Property 7: Eligibility result recommendation**
+*For any* eligible user, the Eligibility_Checker should recommend exactly one loan category (Shishu, Kishor, or Tarun)
+**Validates: Requirements 2.4**
+
+**Property 8: Eligibility result persistence**
+*For any* eligibility check result, the result should be stored in the Offline_Store and retrievable later
+**Validates: Requirements 2.6**
+
+**Property 9: Loan category explanation availability**
+*For any* loan category request, the MudraGuru_System should provide explanations for all three categories (Shishu, Kishor, Tarun) in the user's selected language
+**Validates: Requirements 3.1, 3.4**
+
+**Property 10: Sequential form field guidance**
+*For any* application form, the Form_Assistant should guide the user through fields in a defined sequential order
+**Validates: Requirements 4.1**
+
+**Property 11: Form field validation feedback**
+*For any* user input in a form field, the Form_Assistant should validate the input and provide immediate feedback
+**Validates: Requirements 4.3**
+
+**Property 12: Form auto-fill consistency**
+*For any* previously provided information, the Form_Assistant should auto-fill relevant fields with the same data
+**Validates: Requirements 4.5**
+
+**Property 13: Form progress persistence (round-trip)**
+*For any* form field completion, the data should be saved to Offline_Store, and when the user returns, the form should resume from the last completed field
+**Validates: Requirements 4.6, 4.7**
+
+**Property 14: Bank branch location limit**
+*For any* bank location request, the Bank_Locator should display exactly 5 or fewer nearest bank branches
+**Validates: Requirements 5.2**
+
+**Property 15: Bank branch information completeness**
+*For any* displayed bank branch, the Bank_Locator should show name, address, distance, and contact information
+**Validates: Requirements 5.3**
+
+**Property 16: Bank branch offline availability**
+*For any* previously loaded bank branch data, the Bank_Locator should display cached information when network connectivity is unavailable
+**Validates: Requirements 5.5, 5.6**
+
+**Property 17: Offline core functionality**
+*For any* application start without network connectivity, core features (eligibility questions, loan info, form drafts) should be available
+**Validates: Requirements 6.1, 6.2, 6.5**
+
+**Property 18: Offline action queuing**
+*For any* user action completed offline, the action should be queued for synchronization
+**Validates: Requirements 6.3**
+
+**Property 19: Automatic sync on reconnection**
+*For any* queued offline actions, when network connectivity is restored, the MudraGuru_System should automatically synchronize all queued data
+**Validates: Requirements 6.4**
+
+**Property 20: Initial load performance on 2G**
+*For any* application load over 2G network, the MudraGuru_System should complete initial load within 10 seconds
+**Validates: Requirements 7.1**
+
+**Property 21: Language selection on first use**
+*For any* first-time user, the MudraGuru_System should prompt for language selection (Hindi or English)
+**Validates: Requirements 8.1**
+
+**Property 22: Complete UI translation**
+*For any* selected language, all interface text should be displayed in that language
+**Validates: Requirements 8.2**
+
+**Property 23: Language switching translation**
+*For any* language switch, all current content should be translated to the new language
+**Validates: Requirements 8.3**
+
+**Property 24: Primary action limit per screen**
+*For any* screen in the application, no more than 3 primary actions should be displayed
+**Validates: Requirements 9.1**
+
+**Property 25: Minimum font size**
+*For any* text displayed in the application, the font size should be at least 16pt
+**Validates: Requirements 9.2**
+
+**Property 26: Immediate action feedback**
+*For any* user action, the MudraGuru_System should provide immediate visual feedback
+**Validates: Requirements 9.5**
+
+**Property 27: Sensitive data encryption**
+*For any* personal information (Aadhar, PAN), the data should be encrypted before storage and only stored on the user's device
+**Validates: Requirements 10.1, 10.3**
+
+**Property 28: Secure data transmission**
+*For any* data transmitted over the network, the MudraGuru_System should use secure HTTPS connections
+**Validates: Requirements 10.2**
+
+**Property 29: User data deletion**
+*For any* user data deletion request, all stored personal information should be removed within 24 hours
+**Validates: Requirements 10.6**
+
+### Property Testing Strategy
+
+**Testing Framework:** 
+- Use **fast-check** (JavaScript/TypeScript property-based testing library)
+- Integrate with Jest for test execution
+- Run properties against both frontend and backend components
+
+**Test Data Generation:**
+- Generate random Hindi and English text using Unicode ranges
+- Generate valid phone numbers, Aadhar numbers, PAN numbers
+- Generate realistic business data (income ranges, business types)
+- Generate network condition simulations (2G, 3G, 4G, offline)
+
+**Property Test Execution:**
+- Run each property with 100+ random test cases
+- Use shrinking to find minimal failing examples
+- Test edge cases: empty inputs, maximum values, special characters
+- Test concurrent operations for race conditions
+
+**Coverage Goals:**
+- 100% of acceptance criteria covered by properties
+- All critical user flows tested
+- All data transformations verified
+- All error conditions handled
+
+## 13. Testing Strategy
+
+### Unit Testing
+
+**Frontend Unit Tests (Jest + React Testing Library):**
+
+```typescript
+// Example: VoiceRecorder component test
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { VoiceRecorder } from '@/components/voice/VoiceRecorder';
+
+describe('VoiceRecorder', () => {
+  it('should request microphone permission on start', async () => {
+    const mockGetUserMedia = jest.fn().mockResolvedValue({
+      getTracks: () => [],
+    });
+    
+    global.navigator.mediaDevices = {
+      getUserMedia: mockGetUserMedia,
+    } as any;
+    
+    const onComplete = jest.fn();
+    render(<VoiceRecorder onRecordingComplete={onComplete} language="hi" />);
+    
+    const startButton = screen.getByRole('button', { name: /start/i });
+    fireEvent.click(startButton);
+    
+    await waitFor(() => {
+      expect(mockGetUserMedia).toHaveBeenCalledWith({
+        audio: expect.objectContaining({
+          echoCancellation: true,
+          noiseSuppression: true,
+        }),
+      });
+    });
+  });
+  
+  it('should compress audio before upload', async () => {
+    // Test audio compression logic
+  });
+});
+```
+
+**Backend Unit Tests (Jest):**
+
+```typescript
+// Example: Eligibility service test
+import { EligibilityService } from '@/services/eligibility.service';
+
+describe('EligibilityService', () => {
+  let service: EligibilityService;
+  
+  beforeEach(() => {
+    service = new EligibilityService();
+  });
+  
+  it('should recommend Shishu for income < 10000', () => {
+    const result = service.checkEligibility({
+      businessType: 'retail',
+      monthlyIncome: 8000,
+      yearsInBusiness: 1,
+      hasGST: false,
+      loanPurpose: 'equipment',
+    });
+    
+    expect(result.eligible).toBe(true);
+    expect(result.recommendedCategory).toBe('shishu');
+    expect(result.maxLoanAmount).toBe(50000);
+  });
+  
+  it('should recommend Kishor for income 10000-50000', () => {
+    const result = service.checkEligibility({
+      businessType: 'service',
+      monthlyIncome: 25000,
+      yearsInBusiness: 2,
+      hasGST: false,
+      loanPurpose: 'expansion',
+    });
+    
+    expect(result.eligible).toBe(true);
+    expect(result.recommendedCategory).toBe('kishor');
+    expect(result.maxLoanAmount).toBe(500000);
+  });
+});
+```
+
+### Integration Testing
+
+**API Integration Tests:**
+
+```typescript
+// Example: Voice transcription flow test
+import request from 'supertest';
+import { app } from '@/app';
+
+describe('Voice Transcription Flow', () => {
+  it('should transcribe Hindi audio to text', async () => {
+    // Upload audio file
+    const uploadResponse = await request(app)
+      .post('/api/voice/upload-url')
+      .set('Authorization', `Bearer ${testToken}`)
+      .send({
+        fileName: 'test-audio.opus',
+        contentType: 'audio/webm;codecs=opus',
+      });
+    
+    expect(uploadResponse.status).toBe(200);
+    const { uploadUrl, s3Key } = uploadResponse.body;
+    
+    // Simulate S3 upload
+    await uploadAudioToS3(uploadUrl, testAudioBlob);
+    
+    // Request transcription
+    const transcribeResponse = await request(app)
+      .post('/api/voice/transcribe')
+      .set('Authorization', `Bearer ${testToken}`)
+      .send({
+        s3Key,
+        language: 'hi',
+        sessionId: testSessionId,
+      });
+    
+    expect(transcribeResponse.status).toBe(200);
+    expect(transcribeResponse.body.text).toBeTruthy();
+    expect(transcribeResponse.body.language).toBe('hi');
+  });
+});
+```
+
+### Property-Based Testing
+
+**Example Property Tests:**
+
+```typescript
+import fc from 'fast-check';
+
+describe('Property: Multi-language voice transcription', () => {
+  it('should transcribe any valid Hindi or English text', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.oneof(
+          fc.string({ minLength: 10, maxLength: 200 }), // English
+          fc.unicodeString({ minLength: 10, maxLength: 200 }) // Hindi
+        ),
+        fc.constantFrom('hi', 'en'),
+        async (text, language) => {
+          // Generate speech from text
+          const audioBlob = await synthesizeSpeech(text, language);
+          
+          // Transcribe back to text
+          const transcription = await transcribeAudio(audioBlob, language);
+          
+          // Check similarity (allowing for transcription errors)
+          const similarity = calculateSimilarity(text, transcription);
+          expect(similarity).toBeGreaterThan(0.8); // 80% accuracy threshold
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});
+
+describe('Property: Eligibility question limit', () => {
+  it('should never ask more than 5 questions', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.record({
+          businessType: fc.constantFrom('retail', 'service', 'manufacturing'),
+          monthlyIncome: fc.integer({ min: 0, max: 1000000 }),
+          yearsInBusiness: fc.integer({ min: 0, max: 50 }),
+          hasGST: fc.boolean(),
+          loanPurpose: fc.string({ minLength: 5, maxLength: 100 }),
+        }),
+        async (responses) => {
+          const questions = await getEligibilityQuestions();
+          expect(questions.length).toBeLessThanOrEqual(5);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});
+
+describe('Property: Form progress persistence', () => {
+  it('should preserve and restore form state', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.record({
+          personalInfo: fc.record({
+            name: fc.string({ minLength: 2, maxLength: 100 }),
+            phone: fc.string({ minLength: 10, maxLength: 13 }),
+            address: fc.string({ minLength: 10, maxLength: 200 }),
+          }),
+          businessInfo: fc.record({
+            name: fc.string({ minLength: 2, maxLength: 100 }),
+            type: fc.constantFrom('retail', 'service', 'manufacturing'),
+            yearsInBusiness: fc.integer({ min: 0, max: 50 }),
+          }),
+        }),
+        async (formData) => {
+          // Save form progress
+          const formId = await saveFormProgress(formData, 'business_info');
+          
+          // Retrieve form
+          const retrieved = await getFormProgress(formId);
+          
+          // Verify data integrity
+          expect(retrieved.formData).toEqual(formData);
+          expect(retrieved.currentStep).toBe('business_info');
+        }
+      ),
+      { numRuns: 50 }
+    );
+  });
+});
+
+describe('Property: Offline action queuing and sync', () => {
+  it('should queue offline actions and sync when online', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.array(
+          fc.record({
+            actionType: fc.constantFrom('eligibility_response', 'form_progress'),
+            data: fc.object(),
+          }),
+          { minLength: 1, maxLength: 10 }
+        ),
+        async (actions) => {
+          // Simulate offline mode
+          setNetworkStatus('offline');
+          
+          // Queue actions
+          for (const action of actions) {
+            await queueOfflineAction(action.actionType, action.data);
+          }
+          
+          // Verify actions are queued
+          const queuedActions = await getPendingActions();
+          expect(queuedActions.length).toBe(actions.length);
+          
+          // Simulate online mode
+          setNetworkStatus('online');
+          
+          // Trigger sync
+          await syncOfflineActions();
+          
+          // Verify queue is empty
+          const remainingActions = await getPendingActions();
+          expect(remainingActions.length).toBe(0);
+        }
+      ),
+      { numRuns: 20 }
+    );
+  });
+});
+```
+
+### End-to-End Testing
+
+**E2E Tests (Playwright):**
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('Complete Eligibility Flow', () => {
+  test('should complete eligibility check via voice', async ({ page }) => {
+    await page.goto('/');
+    
+    // Select language
+    await page.click('text=हिंदी');
+    
+    // Start eligibility check
+    await page.click('text=पात्रता जांचें');
+    
+    // Answer questions via voice (simulated)
+    await page.click('[data-testid="voice-button"]');
+    await simulateVoiceInput(page, 'खुदरा दुकान');
+    
+    await page.click('[data-testid="voice-button"]');
+    await simulateVoiceInput(page, 'पच्चीस हजार रुपये');
+    
+    // Continue through all questions
+    // ...
+    
+    // Verify result
+    await expect(page.locator('text=आप पात्र हैं')).toBeVisible();
+    await expect(page.locator('text=किशोर')).toBeVisible();
+  });
+});
+
+test.describe('Offline Functionality', () => {
+  test('should work offline and sync when online', async ({ page, context }) => {
+    await page.goto('/');
+    
+    // Load initial data
+    await page.waitForLoadState('networkidle');
+    
+    // Go offline
+    await context.setOffline(true);
+    
+    // Fill eligibility form
+    await page.click('text=Check Eligibility');
+    await page.fill('[name="businessType"]', 'retail');
+    await page.fill('[name="monthlyIncome"]', '25000');
+    await page.click('text=Submit');
+    
+    // Verify offline indicator
+    await expect(page.locator('[data-testid="offline-indicator"]')).toBeVisible();
+    
+    // Go online
+    await context.setOffline(false);
+    
+    // Wait for sync
+    await page.waitForSelector('[data-testid="sync-complete"]');
+    
+    // Verify data was synced
+    const response = await page.request.get('/api/eligibility/check');
+    expect(response.ok()).toBeTruthy();
+  });
+});
+```
+
+### Performance Testing
+
+**Load Testing (Artillery):**
+
+```yaml
+# artillery-config.yml
+config:
+  target: 'https://api.mudraguru.in'
+  phases:
+    - duration: 60
+      arrivalRate: 10
+      name: "Warm up"
+    - duration: 300
+      arrivalRate: 50
+      name: "Sustained load"
+    - duration: 120
+      arrivalRate: 100
+      name: "Peak load"
+  
+scenarios:
+  - name: "Voice transcription flow"
+    flow:
+      - post:
+          url: "/api/voice/upload-url"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          json:
+            fileName: "test.opus"
+            contentType: "audio/webm"
+      - post:
+          url: "/api/voice/transcribe"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          json:
+            s3Key: "{{ s3Key }}"
+            language: "hi"
+  
+  - name: "Eligibility check"
+    flow:
+      - post:
+          url: "/api/eligibility/check"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          json:
+            responses:
+              businessType: "retail"
+              monthlyIncome: 25000
+              yearsInBusiness: 2
+```
+
+### Security Testing
+
+**Security Test Cases:**
+
+```typescript
+describe('Security Tests', () => {
+  it('should reject requests without authentication', async () => {
+    const response = await request(app)
+      .get('/api/session/sess_123');
+    
+    expect(response.status).toBe(401);
+  });
+  
+  it('should prevent SQL injection in form inputs', async () => {
+    const maliciousInput = "'; DROP TABLE Users; --";
+    
+    const response = await request(app)
+      .post('/api/forms/save-progress')
+      .set('Authorization', `Bearer ${testToken}`)
+      .send({
+        formData: {
+          personalInfo: {
+            name: maliciousInput,
+          },
+        },
+      });
+    
+    expect(response.status).toBe(400);
+  });
+  
+  it('should encrypt sensitive data before storage', async () => {
+    const formData = {
+      personalInfo: {
+        aadharNumber: '123456789012',
+        panNumber: 'ABCDE1234F',
+      },
+    };
+    
+    await saveFormData(formData);
+    
+    // Retrieve from database directly
+    const stored = await getFromDatabase('ApplicationForms', formId);
+    
+    // Verify data is encrypted
+    expect(stored.personalInfo.aadharNumber).not.toBe('123456789012');
+    expect(stored.personalInfo.aadharNumber).toMatch(/^[a-f0-9]+$/); // Hex string
+  });
+});
+```
+
+## 14. Deployment Checklist
+
+### Pre-Deployment
+
+- [ ] All unit tests passing
+- [ ] All integration tests passing
+- [ ] All property-based tests passing
+- [ ] E2E tests passing
+- [ ] Security audit completed
+- [ ] Performance benchmarks met
+- [ ] Code review completed
+- [ ] Documentation updated
+- [ ] Environment variables configured
+- [ ] AWS resources provisioned
+- [ ] Database migrations prepared
+- [ ] Backup strategy in place
+
+### Deployment Steps
+
+1. **Database Setup**
+   - Create DynamoDB tables
+   - Set up GSI indexes
+   - Configure TTL attributes
+   - Seed initial data (bank branches)
+
+2. **Storage Setup**
+   - Create S3 buckets
+   - Configure lifecycle policies
+   - Set up CORS rules
+   - Configure CloudFront distribution
+
+3. **Authentication Setup**
+   - Create Cognito User Pool
+   - Configure custom auth flow
+   - Set up SMS provider for OTP
+
+4. **Backend Deployment**
+   - Build Docker image
+   - Push to ECR
+   - Deploy to ECS/Fargate
+   - Configure auto-scaling
+   - Set up load balancer
+   - Configure health checks
+
+5. **Frontend Deployment**
+   - Build Next.js application
+   - Deploy to Amplify
+   - Configure custom domain
+   - Set up SSL certificate
+   - Configure CDN
+
+6. **Monitoring Setup**
+   - Configure CloudWatch alarms
+   - Set up error tracking
+   - Configure log aggregation
+   - Set up performance monitoring
+
+### Post-Deployment
+
+- [ ] Smoke tests passed
+- [ ] Health check endpoints responding
+- [ ] SSL certificate valid
+- [ ] CDN caching working
+- [ ] Voice services operational
+- [ ] AI services operational
+- [ ] Database connections stable
+- [ ] Monitoring dashboards active
+- [ ] Alerts configured
+- [ ] Backup verification
+- [ ] Performance metrics baseline established
+- [ ] User acceptance testing completed
+
+### Rollback Plan
+
+1. Keep previous version running during deployment
+2. Use blue-green deployment strategy
+3. Monitor error rates for 1 hour post-deployment
+4. If error rate > 5%, trigger automatic rollback
+5. Rollback steps:
+   - Switch traffic back to previous version
+   - Investigate issues
+   - Fix and redeploy
+
+## 15. Maintenance and Monitoring
+
+### Key Metrics to Monitor
+
+**Application Metrics:**
+- API response time (p50, p95, p99)
+- Error rate by endpoint
+- Request rate
+- Active users
+- Session duration
+- Voice transcription success rate
+- AI response generation time
+- Form completion rate
+- Offline sync success rate
+
+**Infrastructure Metrics:**
+- CPU utilization
+- Memory utilization
+- Network throughput
+- Database read/write capacity
+- S3 storage usage
+- CloudFront cache hit rate
+- ECS task count
+
+**Business Metrics:**
+- Daily active users
+- Eligibility checks completed
+- Applications started
+- Applications completed
+- Bank branches viewed
+- Language preference distribution
+- Average session duration
+
+### Alerting Rules
+
+```typescript
+// CloudWatch Alarms
+const alarms = [
+  {
+    name: 'HighErrorRate',
+    metric: 'ErrorCount',
+    threshold: 10,
+    period: 300, // 5 minutes
+    evaluationPeriods: 2,
+    action: 'SendSNSNotification',
+  },
+  {
+    name: 'HighAPILatency',
+    metric: 'APILatency',
+    threshold: 2000, // 2 seconds
+    period: 300,
+    evaluationPeriods: 3,
+    action: 'SendSNSNotification',
+  },
+  {
+    name: 'LowCacheHitRate',
+    metric: 'CacheHitRate',
+    threshold: 0.7, // 70%
+    period: 3600, // 1 hour
+    evaluationPeriods: 1,
+    action: 'SendSNSNotification',
+  },
+];
+```
+
+### Maintenance Tasks
+
+**Daily:**
+- Review error logs
+- Check system health
+- Monitor performance metrics
+- Review user feedback
+
+**Weekly:**
+- Analyze usage patterns
+- Review cost optimization opportunities
+- Update documentation
+- Security patch review
+
+**Monthly:**
+- Performance optimization review
+- Capacity planning
+- Security audit
+- Backup verification
+- Disaster recovery drill
+
+### Scaling Strategy
+
+**Horizontal Scaling:**
+- Auto-scale ECS tasks based on CPU/memory
+- Scale DynamoDB capacity based on read/write patterns
+- Add CloudFront edge locations as needed
+
+**Vertical Scaling:**
+- Upgrade ECS task definitions for more resources
+- Optimize database queries
+- Implement caching layers
+
+**Cost Optimization:**
+- Use DynamoDB on-demand billing
+- Implement S3 lifecycle policies
+- Use CloudFront for static content
+- Optimize Lambda function memory
+- Review and remove unused resources
+
+## Conclusion
+
+This design document provides a comprehensive blueprint for building MudraGuru, an AI-powered voice-first PWA for democratizing access to Mudra Loans in India. The architecture prioritizes:
+
+1. **Accessibility**: Voice-first interface with multi-language support
+2. **Resilience**: Offline-first design with automatic sync
+3. **Performance**: Optimized for 2G networks and low-bandwidth scenarios
+4. **Security**: End-to-end encryption and secure data handling
+5. **Scalability**: Cloud-native architecture with auto-scaling
+6. **Correctness**: Property-based testing for formal verification
+
+The system leverages modern web technologies (Next.js, React, TypeScript) combined with AWS managed services (Bedrock, Transcribe, Polly, DynamoDB, S3) to deliver a robust, scalable solution that can serve millions of small business owners across India.
+
+By following this design, the development team can build a system that not only meets the technical requirements but also delivers real value to users who need it most—empowering small business owners to access financial support for growth.
